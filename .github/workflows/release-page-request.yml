@@ -78,7 +78,8 @@ jobs:
           CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
           CONFLUENCE_SPACE_KEY: "DG"
           CONFLUENCE_PAGE_TITLE: ${{ inputs.CONFLUENCE_PAGE_TITLE }}
-          JIRA_VERSION_LINK: '<a href="${{ env.URL }}" rel="nofollow">${{ env.JIRA_VERSION_NAME }}</a>'
+          JIRA_VERSION_LINK: '<a href="${{ env.URL }}" rel="nofollow">${{ env.NAME }}</a>'
+          JIRA_VERSION_NAME: ${{ env.NAME }}
 
       - name: Teams Alert
         if: steps.confluence-page.outcome == 'success'
