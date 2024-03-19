@@ -64,8 +64,8 @@ runs:
           --header "Authorization: Basic ${{ inputs.CONFLUENCE_API_TOKEN }}")
         JIRA_VERSION_LINK='${{ inputs.JIRA_VERSION_LINK }}'
         MARKDOWN=$(sed "s|\[\[JIRA_VERSION_LINK\]\]|$JIRA_VERSION_LINK|g" release-page-template.md)
-        MARKDOWN=$(sed "s|\[\[JIRA_VERSION_NAME\]\]|$JIRA_VERSION_NAME|g" release-page-template.md)
         HTML=$(npm run -s marked -- "$MARKDOWN")
+        HTML=$(sed "s#<h1>📋 Release Notes</h1><p></p>#<h1>📋 Release Notes</h1><p><ac:structured-macro ac:name=\"jiraissues\"><ac:parameter ac:name=\"anonymous\">true</ac:parameter><ac:parameter ac:name=\"columns\">type;key;summary</ac:parameter><ac:parameter ac:name=\"url\"><ri:url ri:value=\"https://dgrebb.atlassian.net/sr/jira.issueviews:searchrequest-xml/temp/SearchRequest.xml?jqlQuery=fixVersion%3D\${{ env.JIRA_VERSION_NAME }}\"\/><\/ac:parameter><\/ac:structured-macro><\/p>#" <<< "$HTML")
         TRIMMED_HTML=$(echo "$HTML" | tr -d '\n')
         echo "CONFLUENCE_SPACE_ID=$(echo $CONFLUENCE_SPACE_RESPONSE | jq -r '.id')" >>$GITHUB_ENV
         echo "PAGE_BODY=$TRIMMED_HTML" >>$GITHUB_ENV
