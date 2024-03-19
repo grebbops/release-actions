@@ -1,0 +1,92 @@
+name: "🧑‍🚀 Creating Version and Release Notes"
+run-name: "${{ github.event.inputs.JIRA_PROJECT_KEY }}-R-${{ github.event.inputs.JIRA_VERSION_IDENTIFIER }} | ${{ github.event.inputs.CONFLUENCE_PAGE_TITLE }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      CONFLUENCE_SPACE_KEY:
+        type: choice
+        description: "The Confluence space key in which this page will be created."
+        required: true
+        options:
+          - DG
+          - RL
+
+      CONFLUENCE_PAGE_TITLE:
+        description: "The title for the Confluence Page."
+
+      JIRA_PROJECT_KEY:
+        type: choice
+        description: "The Jira project key in which this page will be created."
+        required: true
+        options:
+          - DG
+          - BAG
+
+      JIRA_VERSION_IDENTIFIER:
+        description: "The version identifier, which will be concatenated with 'KEY-R-'."
+        required: true
+        default: "YY.QQ.N.N.0"
+
+      JIRA_VERSION_DESCRIPTION:
+        description: "A description of the Jira version."
+        required: false
+
+concurrency:
+  group: "release-request"
+  cancel-in-progress: true
+
+jobs:
+  release-request:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.event.inputs.JIRA_PROJECT_KEY }}-R-${{ github.event.inputs.JIRA_VERSION_IDENTIFIER }} | ${{ github.event.inputs.CONFLUENCE_PAGE_TITLE }}
+      PAGE: ${{ github.event.inputs.CONFLUENCE_PAGE_TITLE }}
+
+    steps:
+      - name: 𐂷 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Creating Jira Version ${{ env.VERSION }}
+        id: jira-version
+        uses: ./jira-version-add
+        with:
+          WORKSPACE_ROOT: ./jira-version-add
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_URL: ${{ vars.JIRA_API_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: ${{ inputs.JIRA_PROJECT_KEY }}
+          JIRA_VERSION_IDENTIFIER: ${{ inputs.JIRA_VERSION_IDENTIFIER }}
+          JIRA_VERSION_DESCRIPTION: ${{ inputs.JIRA_VERSION_DESCRIPTION }}
+          JIRA_VERSION_RELEASED: ${{ inputs.JIRA_VERSION_RELEASED }}
+
+      - name: Creating Confluence Page ${{ env.PAGE }}
+        id: confluence-page
+        if: steps.jira-version.outcome == 'success'
+        env:
+          URL: ${{ steps.jira-version.outputs.JIRA_VERSION_URL }}
+          NAME: ${{ steps.jira-version.outputs.JIRA_VERSION_NAME }}
+        uses: ./confluence-page-create
+        with:
+          WORKSPACE_ROOT: ./confluence-page-create
+          NODE_VERSION: "20"
+          CONFLUENCE_URL: ${{ vars.CONFLUENCE_URL }}
+          CONFLUENCE_API_URL: ${{ vars.CONFLUENCE_API_URL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_SPACE_KEY: "DG"
+          CONFLUENCE_PAGE_TITLE: ${{ inputs.CONFLUENCE_PAGE_TITLE }}
+          JIRA_VERSION_LINK: '<a href="${{ env.URL }}" rel="nofollow">${{ env.JIRA_VERSION_NAME }}</a>'
+
+      - name: Teams Alert
+        if: steps.confluence-page.outcome == 'success'
+        env:
+          JIRA_VERSION_URL: ${{ steps.jira-version.outputs.JIRA_VERSION_URL }}
+          CONFLUENCE_PAGE_URL: ${{ steps.confluence-page.outputs.CONFLUENCE_PAGE_URL }}
+        uses: ./teams-announcement
+        with:
+          JIRA_VERSION_URL: ${{ env.JIRA_VERSION_URL }}
+          CONFLUENCE_PAGE_URL: ${{ env.CONFLUENCE_PAGE_URL }}
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
